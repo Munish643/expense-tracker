@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Expense Tracker</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+
+  <style>
+    :root {
+      --primary-color: #4CAF50;
+      --secondary-color: #2196F3;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      padding: 20px;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+
+    .card {
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      animation: slideIn 0.5s ease-out;
+    }
+
+    .card-header {
+      background: transparent;
+      border: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .card-header h2 {
+      color: var(--primary-color);
+      margin: 0;
+    }
+
+    .form-control {
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+      box-shadow: 0 0 0 0.25rem rgba(76, 175, 80, 0.25);
+      border-color: var(--primary-color);
+    }
+
+    .btn-custom {
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      border: none;
+      color: white;
+      transition: all 0.3s ease;
+      border-radius: 25px;
+      padding: 12px;
+    }
+
+    .btn-custom:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .register-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .register-link a {
+      color: var(--primary-color);
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .register-link a:hover {
+      color: var(--secondary-color);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      border-radius: 50%;
+      width: 45px;
+      height: 45px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .success-message {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: var(--primary-color);
+      color: white;
+      padding: 15px 25px;
+      border-radius: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      z-index: 1000;
+      animation: slideIn 0.5s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <button class="btn btn-custom theme-toggle" onclick="toggleTheme()">
+    <i class="bi bi-moon-stars"></i>
+  </button>
+
+  <div class="login-container">
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="bi bi-person-circle"></i> Login</h2>
+      </div>
+      <div class="card-body">
+        <form id="loginForm">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" required>
+          </div>
+          <button type="submit" class="btn btn-custom w-100">Login</button>
+        </form>
+        <div class="register-link">
+          Don't have an account? <a href="register.html">Register</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    let API_BASE_URL = 'http://localhost:8080';
+
+    // Theme toggle function
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-bs-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    }
+
+    // Set initial theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+
+    // Handle form submission
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          
+          // Show success message
+          const successMsg = document.createElement('div');
+          successMsg.className = 'success-message';
+          successMsg.innerHTML = `<i class="bi bi-check-circle"></i> Login successful!`;
+          document.body.appendChild(successMsg);
+          
+          // Redirect after a short delay
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 1500);
+        } else {
+          console.error('Login failed:', data.message);
+        }
+      } catch (error) {
+        console.error('Error during login:', error);
+      }
+    });
+  </script>
+</body>
+</html>

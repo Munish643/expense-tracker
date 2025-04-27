@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #6a11cb;
+      --secondary-color: #2575fc;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 30px 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: var(--bs-body-bg);
+      color: var(--bs-body-color);
+      transition: all 0.3s ease;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    .slide-in {
+      animation: slideIn 0.5s ease-out;
+    }
+
+    .scale-in {
+      animation: scaleIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .card {
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .btn-custom {
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      border: none;
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .btn-custom:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    .transaction-item {
+      transition: all 0.3s ease;
+    }
+
+    .transaction-item:hover {
+      transform: translateX(5px);
+    }
+
+    .delete-btn {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .transaction-item:hover .delete-btn {
+      opacity: 1;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin: 20px 0;
+    }
+
+    [data-bs-theme="dark"] {
+      --bs-body-bg: #212529;
+      --bs-body-color: #f8f9fa;
+    }
+
+    [data-bs-theme="light"] {
+      --bs-body-bg: #f8f9fa;
+      --bs-body-color: #212529;
+    }
+
+    .auth-container {
+      display: none;
+    }
+
+    .user-container {
+      display: none;
+    }
+
+    .chart-section {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<button class="btn btn-custom theme-toggle" onclick="toggleTheme()">
+  <i class="bi bi-moon-stars"></i>
+</button>
+
+<!-- Include Navigation -->
+<div id="nav-placeholder"></div>
+
+<div class="container mt-5 fade-in">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card p-4 slide-in">
+        <h2 class="text-center mb-4">Expense Tracker</h2>
+        
+        <!-- Auth Container -->
+        <div id="authContainer" class="auth-container">
+          <div class="d-grid gap-2">
+            <a href="login.html" class="btn btn-custom">Login</a>
+            <a href="register.html" class="btn btn-outline-primary">Register</a>
+          </div>
+        </div>
+
+        <!-- User Container -->
+        <div id="userContainer" class="user-container">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 id="userName">Welcome, User</h4>
+            </div>
+            <button class="btn btn-outline-danger" onclick="logout()">Logout</button>
+          </div>
+        </div>
+
+        <!-- Balance Section -->
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <div class="card text-center p-3 scale-in">
+              <h5>Balance</h5>
+              <h3 id="balance">₹0.00</h3>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card text-center p-3 scale-in">
+              <h5>Income</h5>
+              <h3 class="text-success" id="income">₹0.00</h3>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card text-center p-3 scale-in">
+              <h5>Expense</h5>
+              <h3 class="text-danger" id="expense">₹0.00</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transaction Form -->
+        <form id="transactionForm" class="mb-4 slide-in">
+          <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <input type="text" class="form-control" id="description" required>
+          </div>
+          <div class="mb-3">
+            <label for="amount" class="form-label">Amount</label>
+            <input type="number" class="form-control" id="amount" required min="0" step="0.01">
+          </div>
+          <div class="mb-3">
+            <label for="type" class="form-label">Type</label>
+            <select class="form-select" id="type" required>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+          <div class="mb-3" id="categoryField" style="display: none;">
+            <label for="category" class="form-label">Category</label>
+            <select class="form-select" id="category">
+              <option value="Food">Food</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Housing">Housing</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-custom w-100">Add Transaction</button>
+        </form>
+
+        <!-- Transaction List -->
+        <div class="card p-3 slide-in mb-4">
+          <h4 class="mb-3">Transaction History</h4>
+          <ul id="transactionList" class="list-group">
+            <!-- Transactions will be added here dynamically -->
+          </ul>
+        </div>
+
+        <!-- Charts Section -->
+        <div id="chartSection" class="chart-section">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card p-3 mb-4">
+                <h5 class="text-center">Category Distribution</h5>
+                <div class="chart-container">
+                  <canvas id="categoryChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-3 mb-4">
+                <h5 class="text-center">Weekly Overview</h5>
+                <div class="chart-container">
+                  <canvas id="weeklyChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card p-3 mb-4">
+                <h5 class="text-center">Monthly Overview</h5>
+                <div class="chart-container">
+                  <canvas id="monthlyChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-3 mb-4">
+                <h5 class="text-center">Yearly Overview</h5>
+                <div class="chart-container">
+                  <canvas id="yearlyChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // Initialize variables
+  let transactions = [];
+  let expenseChart = null;
+  let monthlyChart = null;
+  let weeklyChart = null;
+  let yearlyChart = null;
+  let API_BASE_URL = 'http://localhost:8080';
+  let chartStats = null;
+  let chartColors = {
+    income: '#28a745',
+    expense: '#dc3545',
+    categories: [
+      '#dc3545', // Red for largest expense
+      '#ffc107', // Yellow
+      '#17a2b8', // Blue
+      '#6f42c1', // Purple
+      '#20c997', // Teal
+      '#fd7e14', // Orange
+      '#e83e8c', // Pink
+      '#6c757d'  // Gray
+    ]
+  };
+
+  // Load navigation and initialize
+  document.addEventListener('DOMContentLoaded', async function() {
+    console.log('DOM Content Loaded');
+    
+    // Load navigation
+    fetch('nav.html')
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('nav-placeholder').innerHTML = data;
+      })
+      .catch(error => console.error('Error loading navigation:', error));
+
+    // Set initial theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+
+    // Set API base URL directly
+    API_BASE_URL = 'http://localhost:8080';
+    console.log('API Base URL set to:', API_BASE_URL);
+
+    // Check authentication
+    await checkAuth();
+    
+    // Initialize charts
+    initCharts();
+    
+    // Load chart stats if logged in
+    if (localStorage.getItem('token')) {
+      await loadChartStats();
+    }
+    
+    // Add event listener for type field
+    const typeField = document.getElementById('type');
+    if (typeField) {
+      typeField.addEventListener('change', function() {
+        const categoryField = document.getElementById('categoryField');
+        if (this.value === 'expense') {
+          categoryField.style.display = 'block';
+        } else {
+          categoryField.style.display = 'none';
+        }
+      });
+    }
+    
+    // Add event listener for transaction form
+    const transactionForm = document.getElementById('transactionForm');
+    if (transactionForm) {
+      console.log('Transaction form found, adding submit event listener');
+      transactionForm.onsubmit = handleTransactionSubmit;
+    } else {
+      console.error('Transaction form not found');
+    }
+  });
+
+  // Function to detect server port
+  async function detectServerPort() {
+    const ports = [8080, 8081, 8082, 8083, 8084, 8085];
+    for (const port of ports) {
+      try {
+        const response = await fetch(`http://localhost:${port}/api/auth/profile`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (response.ok) {
+          API_BASE_URL = `http://localhost:${port}`;
+          console.log(`Server found on port ${port}`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`Port ${port} not available`);
+      }
+    }
+    console.error('Server not found on any port');
+    return false;
+  }
+
+  // Check authentication status
+  async function checkAuth() {
+    try {
+      const token = localStorage.getItem('token');
+      let user = {};
+      
+      // Safely parse user data
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          user = JSON.parse(userData);
+        }
+      } catch (parseError) {
+        console.error('Error parsing user data:', parseError);
+        // Reset invalid user data
+        localStorage.removeItem('user');
+      }
+      
+      console.log('Checking auth with token:', token ? 'Token exists' : 'No token');
+      console.log('User data:', user);
+      
+      if (token && user) {
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('userContainer').style.display = 'block';
+        document.getElementById('chartSection').style.display = 'block';
+        
+        // Display username if available, otherwise show a generic welcome
+        const username = user.name || user.username || 'Guest';
+        document.getElementById('userName').textContent = `Welcome, ${username}`;
+        
+        // Load transactions after authentication is confirmed
+        console.log('Loading transactions after auth check');
+        await loadTransactions();
+      } else {
+        document.getElementById('authContainer').style.display = 'block';
+        document.getElementById('userContainer').style.display = 'none';
+        document.getElementById('chartSection').style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error in checkAuth:', error);
+    }
+  }
+
+  // Logout function
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.html';
+  }
+
+  // Theme toggle function
+  function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-bs-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateChartsTheme();
+  }
+
+  // Load transactions
+  async function loadTransactions() {
+    try {
+      console.log('Loading transactions from:', `${API_BASE_URL}/api/expenses`);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('No token found for loading transactions');
+        return;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/expenses`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Transactions response status:', response.status);
+      
+      if (response.ok) {
+        transactions = await response.json();
+        console.log('Loaded transactions:', transactions.length);
+        updateTransactionList();
+        updateTotals();
+        updateCharts();
+      } else {
+        console.error('Failed to load transactions:', response.status);
+        
+        // Handle different error status codes
+        if (response.status === 401) {
+          showToast('Your session has expired. Please log in again.', 'danger');
+          logout();
+        } else if (response.status === 500) {
+          console.error('Server error (500). This might be a temporary issue.');
+          // Show a more user-friendly message for server errors
+          showToast('Server error. Please try again later or contact support.', 'warning');
+          
+          // Initialize with empty transactions to prevent UI from breaking
+          transactions = [];
+          updateTransactionList();
+          updateTotals();
+        } else {
+          try {
+            const errorData = await response.json();
+            console.error('Error details:', errorData);
+            showToast('Failed to load transactions: ' + (errorData.message || 'Unknown error'), 'danger');
+          } catch (parseError) {
+            console.error('Could not parse error response:', parseError);
+            showToast('Failed to load transactions. Please try again later.', 'danger');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      showToast('Network error. Please check your connection and try again.', 'danger');
+      
+      // Initialize with empty transactions to prevent UI from breaking
+      transactions = [];
+      updateTransactionList();
+      updateTotals();
+    }
+  }
+
+  // Update transaction list
+  function updateTransactionList() {
+    console.log('Updating transaction list with', transactions.length, 'transactions');
+    const list = document.getElementById('transactionList');
+    
+    if (!list) {
+      console.error('Transaction list element not found');
+      return;
+    }
+    
+    list.innerHTML = '';
+
+    if (transactions.length === 0) {
+      const emptyMessage = document.createElement('li');
+      emptyMessage.className = 'list-group-item text-center';
+      emptyMessage.textContent = 'No transactions found. Add your first transaction!';
+      list.appendChild(emptyMessage);
+      return;
+    }
+
+    transactions.forEach(transaction => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center transaction-item';
+      li.setAttribute('data-id', transaction._id);
+      li.style.cursor = 'pointer';
+      li.onclick = function(e) {
+        // Don't trigger if clicking the delete button
+        if (!e.target.closest('.delete-btn')) {
+          showTransactionDetails(transaction);
+        }
+      };
+      
+      // Format date and time
+      const transactionDate = new Date(transaction.date);
+      const formattedDate = transactionDate.toLocaleDateString();
+      const formattedTime = transactionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      li.innerHTML = `
+        <div>
+          <span class="fw-bold">${transaction.description || transaction.title || 'Untitled'}</span>
+          <br>
+          <small class="text-muted">${formattedDate} at ${formattedTime}</small>
+        </div>
+        <div>
+          <span class="${transaction.type === 'income' ? 'text-success' : 'text-danger'}">
+            ${transaction.type === 'income' ? '+' : '-'}₹${Math.abs(transaction.amount).toFixed(2)}
+          </span>
+          <button class="btn btn-sm btn-danger delete-btn ms-2" onclick="deleteTransaction('${transaction._id}')">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  // Show transaction details
+  function showTransactionDetails(transaction) {
+    // Format date and time
+    const transactionDate = new Date(transaction.date);
+    const formattedDate = transactionDate.toLocaleDateString();
+    const formattedTime = transactionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Create modal HTML
+    const modalHTML = `
+      <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="transactionModalLabel">Transaction Details</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <h6>Description</h6>
+                <p>${transaction.description || 'No description'}</p>
+              </div>
+              <div class="mb-3">
+                <h6>Amount</h6>
+                <p class="${transaction.type === 'income' ? 'text-success' : 'text-danger'}">
+                  ${transaction.type === 'income' ? '+' : '-'}₹${Math.abs(transaction.amount).toFixed(2)}
+                </p>
+              </div>
+              <div class="mb-3">
+                <h6>Category</h6>
+                <p>${transaction.category || 'Uncategorized'}</p>
+              </div>
+              <div class="mb-3">
+                <h6>Date</h6>
+                <p>${formattedDate}</p>
+              </div>
+              <div class="mb-3">
+                <h6>Time</h6>
+                <p>${formattedTime}</p>
+              </div>
+              <div class="mb-3">
+                <h6>Added By</h6>
+                <p>${transaction.userName || 'Unknown'}</p>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-danger" onclick="deleteTransaction('${transaction._id}')">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('transactionModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Add modal to the document
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('transactionModal'));
+    modal.show();
+  }
+
+  // Delete transaction
+  async function deleteTransaction(id) {
+    // Create confirmation modal
+    const modalHTML = `
+      <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="deleteConfirmModalLabel">Confirm Deletion</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p>Are you sure you want to delete this transaction? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('deleteConfirmModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Add modal to the document
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+    
+    // Add event listener to the confirm button
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/expenses/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          showToast('Transaction deleted successfully', 'success');
+          modal.hide();
+          await loadTransactions();
+          await loadChartStats();
+        } else {
+          console.error('Failed to delete transaction');
+          showToast('Failed to delete transaction', 'danger');
+        }
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        showToast('Error deleting transaction', 'danger');
+      }
+    });
+  }
+
+  // Update totals
+  function updateTotals() {
+    const income = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const expense = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const balance = income - expense;
+
+    document.getElementById('income').textContent = `₹${income.toFixed(2)}`;
+    document.getElementById('expense').textContent = `₹${expense.toFixed(2)}`;
+    document.getElementById('balance').textContent = `₹${balance.toFixed(2)}`;
+  }
+
+  // Initialize charts
+  function initCharts() {
+    console.log('Initializing charts...');
+    
+    // Check if chart canvases exist
+    const monthlyCanvas = document.getElementById('monthlyChart');
+    const weeklyCanvas = document.getElementById('weeklyChart');
+    const categoryCanvas = document.getElementById('categoryChart');
+    const yearlyCanvas = document.getElementById('yearlyChart');
+    
+    if (!monthlyCanvas || !weeklyCanvas || !categoryCanvas || !yearlyCanvas) {
+      console.error('One or more chart canvases not found');
+      return;
+    }
+    
+    // Safely destroy existing charts if they exist
+    if (window.monthlyChart && typeof window.monthlyChart.destroy === 'function') {
+      window.monthlyChart.destroy();
+    }
+    if (window.weeklyChart && typeof window.weeklyChart.destroy === 'function') {
+      window.weeklyChart.destroy();
+    }
+    if (window.categoryChart && typeof window.categoryChart.destroy === 'function') {
+      window.categoryChart.destroy();
+    }
+    if (window.yearlyChart && typeof window.yearlyChart.destroy === 'function') {
+      window.yearlyChart.destroy();
+    }
+    
+    // Chart colors
+    const colors = {
+      income: '#4CAF50',
+      expense: '#F44336',
+      background: 'rgba(255, 255, 255, 0.1)',
+      border: 'rgba(255, 255, 255, 0.2)',
+      text: '#FFFFFF'
+    };
+    
+    // Common options
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: colors.text
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: colors.border
+          },
+          ticks: {
+            color: colors.text
+          }
+        },
+        x: {
+          grid: {
+            color: colors.border
+          },
+          ticks: {
+            color: colors.text
+          }
+        }
+      }
+    };
+    
+    // Initialize monthly chart
+    window.monthlyChart = new Chart(monthlyCanvas, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Daily Balance',
+            data: [],
+            borderColor: colors.income,
+            backgroundColor: colors.background,
+            tension: 0.4
+          }
+        ]
+      },
+      options: commonOptions
+    });
+    
+    // Initialize weekly chart
+    window.weeklyChart = new Chart(weeklyCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        datasets: [
+          {
+            label: 'Income',
+            data: Array(7).fill(0),
+            backgroundColor: colors.income,
+            stack: 'stack0'
+          },
+          {
+            label: 'Expenses',
+            data: Array(7).fill(0),
+            backgroundColor: colors.expense,
+            stack: 'stack0'
+          }
+        ]
+      },
+      options: {
+        ...commonOptions,
+        scales: {
+          ...commonOptions.scales,
+          x: {
+            ...commonOptions.scales.x,
+            stacked: true
+          },
+          y: {
+            ...commonOptions.scales.y,
+            stacked: true
+          }
+        }
+      }
+    });
+    
+    // Initialize category chart
+    window.categoryChart = new Chart(categoryCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: [
+            '#FF6384',
+            '#36A2EB',
+            '#FFCE56',
+            '#4BC0C0',
+            '#9966FF',
+            '#FF9F40'
+          ]
+        }]
+      },
+      options: {
+        ...commonOptions,
+        plugins: {
+          ...commonOptions.plugins,
+          legend: {
+            ...commonOptions.plugins.legend,
+            position: 'right'
+          }
+        }
+      }
+    });
+    
+    // Initialize yearly chart
+    window.yearlyChart = new Chart(yearlyCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        datasets: [
+          {
+            label: 'Income',
+            data: Array(12).fill(0),
+            backgroundColor: colors.income
+          },
+          {
+            label: 'Expenses',
+            data: Array(12).fill(0),
+            backgroundColor: colors.expense
+          }
+        ]
+      },
+      options: commonOptions
+    });
+    
+    console.log('Charts initialized successfully');
+  }
+
+  // Load chart statistics
+  async function loadChartStats() {
+    try {
+      console.log('Loading chart statistics...');
+      
+      // Ensure charts are initialized
+      if (!window.monthlyChart || !window.weeklyChart || !window.categoryChart || !window.yearlyChart) {
+        console.log('Charts not initialized, initializing now...');
+        initCharts();
+      }
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        window.location.href = '/register.html';
+        return;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/expenses/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.status === 401) {
+        console.error('Unauthorized access');
+        localStorage.removeItem('token');
+        window.location.href = '/register.html';
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Received chart data:', data);
+      
+      // Update monthly chart
+      if (data.monthly && window.monthlyChart) {
+        const labels = data.monthly.map(item => {
+          const date = new Date(item._id);
+          return date.toLocaleDateString();
+        });
+        const values = data.monthly.map(item => item.totalAmount);
+        
+        window.monthlyChart.data.labels = labels;
+        window.monthlyChart.data.datasets[0].data = values;
+        window.monthlyChart.update();
+      }
+      
+      // Update weekly chart
+      if (data.weekly && window.weeklyChart) {
+        const incomeData = data.weekly.map(item => item.income || 0);
+        const expenseData = data.weekly.map(item => Math.abs(item.expense) || 0);
+        
+        window.weeklyChart.data.datasets[0].data = incomeData;
+        window.weeklyChart.data.datasets[1].data = expenseData;
+        window.weeklyChart.update();
+      }
+      
+      // Update category chart
+      if (data.categories && window.categoryChart) {
+        const labels = data.categories.map(item => item._id);
+        const values = data.categories.map(item => Math.abs(item.totalAmount));
+        
+        window.categoryChart.data.labels = labels;
+        window.categoryChart.data.datasets[0].data = values;
+        window.categoryChart.update();
+      }
+      
+      // Update yearly chart
+      if (data.yearly && window.yearlyChart) {
+        const incomeData = data.yearly.map(item => item.income || 0);
+        const expenseData = data.yearly.map(item => Math.abs(item.expense) || 0);
+        
+        window.yearlyChart.data.datasets[0].data = incomeData;
+        window.yearlyChart.data.datasets[1].data = expenseData;
+        window.yearlyChart.update();
+      }
+      
+      console.log('Charts updated successfully');
+    } catch (error) {
+      console.error('Error loading chart statistics:', error);
+    }
+  }
+
+  // Update charts
+  function updateCharts() {
+    console.log('Updating charts with stats:', chartStats);
+    
+    if (!chartStats) {
+        console.log('No chart stats available, using default empty charts');
+        chartStats = { categories: [], monthly: [], weekly: [], yearly: [] };
+    }
+
+    // Check if charts are initialized
+    if (!expenseChart || !monthlyChart || !weeklyChart || !yearlyChart) {
+        console.error('Charts not initialized, cannot update');
+        return;
+    }
+
+    try {
+        // Update expense distribution chart
+        if (chartStats.categories && chartStats.categories.length > 0) {
+            console.log('Updating expense chart with categories:', chartStats.categories);
+            const categoryData = chartStats.categories
+                .filter(cat => cat._id !== 'Income')
+                .map(cat => ({
+                    label: cat._id || 'Other',
+                    value: Math.abs(cat.totalAmount)
+                }));
+
+            if (categoryData.length > 0) {
+                console.log('Category data for expense chart:', categoryData);
+                expenseChart.data.labels = categoryData.map(d => d.label);
+                expenseChart.data.datasets[0].data = categoryData.map(d => d.value);
+                
+                if (categoryData.length > 0) {
+                    const sortedData = [...categoryData].sort((a, b) => b.value - a.value);
+                    const largestCategory = sortedData[0].label;
+                    const largestIndex = categoryData.findIndex(d => d.label === largestCategory);
+                    
+                    const reorderedColors = [...chartColors.categories];
+                    const redColor = reorderedColors[0];
+                    reorderedColors[0] = reorderedColors[largestIndex];
+                    reorderedColors[largestIndex] = redColor;
+                    
+                    expenseChart.data.datasets[0].backgroundColor = reorderedColors;
+                    expenseChart.data.datasets[0].borderColor = reorderedColors.map(color => 
+                        color.replace('0.8', '1').replace('0.6', '0.8')
+                    );
+                }
+                
+                expenseChart.update();
+            } else {
+                console.log('No expense categories found, showing empty state');
+                expenseChart.data.labels = ['No Expenses'];
+                expenseChart.data.datasets[0].data = [1];
+                expenseChart.data.datasets[0].backgroundColor = ['rgba(200, 200, 200, 0.8)'];
+                expenseChart.data.datasets[0].borderColor = ['rgba(200, 200, 200, 1)'];
+                expenseChart.update();
+            }
+        } else {
+            console.log('No categories in chart stats, showing empty state');
+            expenseChart.data.labels = ['No Expenses'];
+            expenseChart.data.datasets[0].data = [1];
+            expenseChart.data.datasets[0].backgroundColor = ['rgba(200, 200, 200, 0.8)'];
+            expenseChart.data.datasets[0].borderColor = ['rgba(200, 200, 200, 1)'];
+            expenseChart.update();
+        }
+
+        // Update monthly overview chart
+        if (chartStats.monthly && chartStats.monthly.length > 0) {
+            console.log('Updating monthly chart with data:', chartStats.monthly);
+            const monthlyData = chartStats.monthly.map(day => ({
+                date: day._id,
+                amount: day.totalAmount
+            }));
+
+            monthlyChart.data.labels = monthlyData.map(d => new Date(d.date).toLocaleDateString());
+            monthlyChart.data.datasets[0].data = monthlyData.map(d => d.amount);
+            monthlyChart.update();
+        } else {
+            console.log('No monthly data found, showing empty state');
+            monthlyChart.data.labels = ['No Data'];
+            monthlyChart.data.datasets[0].data = [0];
+            monthlyChart.update();
+        }
+
+        // Update weekly overview chart
+        if (chartStats.weekly && chartStats.weekly.length > 0) {
+            console.log('Updating weekly chart with data:', chartStats.weekly);
+            const weeklyData = chartStats.weekly.map(day => ({
+                day: day._id,
+                income: day.income || 0,
+                expense: Math.abs(day.expense || 0)
+            }));
+
+            weeklyChart.data.datasets[0].data = weeklyData.map(d => d.income);
+            weeklyChart.data.datasets[1].data = weeklyData.map(d => d.expense);
+            weeklyChart.update();
+        } else {
+            console.log('No weekly data found, showing empty state');
+            weeklyChart.data.datasets[0].data = Array(7).fill(0);
+            weeklyChart.data.datasets[1].data = Array(7).fill(0);
+            weeklyChart.update();
+        }
+
+        // Update yearly overview chart
+        if (chartStats.yearly && chartStats.yearly.length > 0) {
+            console.log('Updating yearly chart with data:', chartStats.yearly);
+            const yearlyData = chartStats.yearly.map(month => ({
+                month: month._id,
+                income: month.income || 0,
+                expense: Math.abs(month.expense || 0)
+            }));
+
+            yearlyChart.data.datasets[0].data = yearlyData.map(d => d.income);
+            yearlyChart.data.datasets[1].data = yearlyData.map(d => d.expense);
+            yearlyChart.update();
+        } else {
+            console.log('No yearly data found, showing empty state');
+            yearlyChart.data.datasets[0].data = Array(12).fill(0);
+            yearlyChart.data.datasets[1].data = Array(12).fill(0);
+            yearlyChart.update();
+        }
+    } catch (error) {
+        console.error('Error updating charts:', error);
+        // Show empty states for all charts
+        if (expenseChart) {
+            expenseChart.data.labels = ['No Data'];
+            expenseChart.data.datasets[0].data = [1];
+            expenseChart.data.datasets[0].backgroundColor = ['rgba(200, 200, 200, 0.8)'];
+            expenseChart.data.datasets[0].borderColor = ['rgba(200, 200, 200, 1)'];
+            expenseChart.update();
+        }
+
+        if (monthlyChart) {
+            monthlyChart.data.labels = ['No Data'];
+            monthlyChart.data.datasets[0].data = [0];
+            monthlyChart.update();
+        }
+
+        if (weeklyChart) {
+            weeklyChart.data.datasets[0].data = Array(7).fill(0);
+            weeklyChart.data.datasets[1].data = Array(7).fill(0);
+            weeklyChart.update();
+        }
+
+        if (yearlyChart) {
+            yearlyChart.data.datasets[0].data = Array(12).fill(0);
+            yearlyChart.data.datasets[1].data = Array(12).fill(0);
+            yearlyChart.update();
+        }
+    }
+  }
+
+  // Update charts theme
+  function updateChartsTheme() {
+    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const textColor = isDark ? '#f8f9fa' : '#212529';
+
+    [expenseChart, monthlyChart, weeklyChart, yearlyChart].forEach(chart => {
+      if (chart) {
+        chart.options.plugins.legend.labels.color = textColor;
+        if (chart.options.scales) {
+          chart.options.scales.y.ticks.color = textColor;
+          chart.options.scales.x.ticks.color = textColor;
+        }
+        chart.update();
+      }
+    });
+  }
+
+  // Handle transaction form submission
+  async function handleTransactionSubmit(e) {
+    e.preventDefault();
+    console.log('Form submitted');
+    
+    const description = document.getElementById('description').value.trim();
+    const amount = parseFloat(document.getElementById('amount').value);
+    const type = document.getElementById('type').value;
+    const category = type === 'expense' ? document.getElementById('category').value : 'Income';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = user.name || 'Anonymous';
+
+    if (!description || isNaN(amount) || amount <= 0) {
+      showToast('Please enter valid transaction details', 'danger');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showToast('Please log in to add transactions', 'danger');
+        return;
+      }
+
+      // Show loading toast
+      showToast('Adding transaction...', 'info');
+
+      const transactionData = {
+        title: description,
+        amount: type === 'expense' ? -Math.abs(amount) : Math.abs(amount),
+        category: category,
+        description: description,
+        date: new Date().toISOString(),
+        userName: userName,
+        type: type // Explicitly include the type field
+      };
+
+      console.log('Sending transaction data:', transactionData);
+
+      const response = await fetch(`${API_BASE_URL}/api/expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(transactionData)
+      });
+
+      console.log('Server response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Transaction added successfully:', data);
+        document.getElementById('transactionForm').reset();
+        document.getElementById('categoryField').style.display = 'none';
+        
+        // Show success toast with green background
+        showToast('Transaction added successfully!', 'success');
+        
+        // Reload transactions and charts
+        await loadTransactions();
+        await loadChartStats();
+      } else {
+        // Handle different error status codes
+        if (response.status === 401) {
+          showToast('Your session has expired. Please log in again.', 'danger');
+          logout();
+        } else if (response.status === 500) {
+          console.error('Server error (500) when adding transaction');
+          showToast('Server error. Please try again later or contact support.', 'warning');
+        } else {
+          try {
+            const errorData = await response.json();
+            console.error('Failed to add transaction:', errorData);
+            showToast('Failed to add transaction: ' + (errorData.message || 'Unknown error'), 'danger');
+          } catch (parseError) {
+            console.error('Could not parse error response:', parseError);
+            showToast('Failed to add transaction. Please try again later.', 'danger');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      showToast('Network error. Please check your connection and try again.', 'danger');
+    }
+  }
+
+  // Show toast notification
+  function showToast(message, type) {
+    const toastContainer = document.createElement('div');
+    toastContainer.className = `toast align-items-center text-white bg-${type} border-0 show`;
+    toastContainer.style.position = 'fixed';
+    toastContainer.style.top = '20px';
+    toastContainer.style.right = '20px';
+    toastContainer.style.zIndex = '1100';
+    
+    toastContainer.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">
+          ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    `;
+    
+    document.body.appendChild(toastContainer);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      toastContainer.remove();
+    }, 3000);
+  }
+</script>
+
+</body>
+</html>
